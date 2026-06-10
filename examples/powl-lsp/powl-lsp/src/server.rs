@@ -1,5 +1,5 @@
-use crate::powl_parser::parse_powl;
-use crate::validators::validate_powl;
+use crate::powl_types::PowlNode;
+use crate::validators::validate_node;
 use lsp_max::{Client, LanguageServer};
 use lsp_types_max::*;
 
@@ -14,32 +14,18 @@ impl PowlLsp {
 
     async fn check_and_publish(&self, uri: Uri, content: String) {
         let diagnostics = parse_and_validate(&content);
-        self.client
-            .publish_diagnostics(uri, diagnostics, None)
-            .await;
+        self.client.publish_diagnostics(uri, diagnostics, None).await;
     }
 }
 
 fn parse_and_validate(content: &str) -> Vec<Diagnostic> {
-    let v: serde_json::Value = match serde_json::from_str(content) {
-        Ok(v) => v,
-        Err(e) => {
-            return vec![Diagnostic {
-                range: Range::new(Position::new(0, 0), Position::new(0, 0)),
-                severity: Some(DiagnosticSeverity::ERROR),
-                source: Some("powl-lsp".to_string()),
-                message: format!("JSON parse error: {}", e),
-                ..Diagnostic::default()
-            }]
-        }
-    };
-    match parse_powl(&v) {
-        Ok(powl) => validate_powl(&powl),
+    match serde_json::from_str::<PowlNode>(content) {
+        Ok(node) => validate_node(&node),
         Err(e) => vec![Diagnostic {
             range: Range::new(Position::new(0, 0), Position::new(0, 0)),
             severity: Some(DiagnosticSeverity::ERROR),
             source: Some("powl-lsp".to_string()),
-            message: format!("POWL structure error: {}", e),
+            message: format!("POWL parse error: {}", e),
             ..Diagnostic::default()
         }],
     }

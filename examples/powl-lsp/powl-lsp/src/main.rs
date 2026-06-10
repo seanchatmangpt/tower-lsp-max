@@ -1,4 +1,4 @@
-mod powl_parser;
+mod powl_types;
 mod server;
 mod validators;
 
