@@ -34,10 +34,10 @@ be zero at all times — this is the inviolable rule).
 | Example witnesses (live run) | — | ❌ exposed-but-unrepresented |
 | Coverage gap map | `app/coverage` (RSC parses real DOC_COVERAGE_LOG.md) | ✅ represented (iter 3) |
 | Conformance verdict (live) | `app/conformance` (RSC parses real `conformance.rs` + DOC_COVERAGE_LOG.md) | ✅ represented (iter 4) |
-| OCEL process evidence | — | ❌ exposed-but-unrepresented |
+| OCEL process evidence | `app/ocel` (RSC reads real `*.ocel.json`) | ✅ represented (iter 9) |
 | Receipt-chain cross-product graph | — | ❌ (cross-product, after per-capability) |
 
-rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 3.
+rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 2.
 
 ## Iteration log
 
