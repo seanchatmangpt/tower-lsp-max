@@ -149,3 +149,18 @@ rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 0.
   (TOWER_LSP_MAX_* -> LSP_MAX_*), and stale artifact removal
   (tower-lsp-max-runtime/, stash-wip). Build status for Rust workspace:
   CANDIDATE (requires sibling repos).
+
+### Iteration 13 — test consolidation (no new web gaps)
+- DOC_COVERAGE_LOG.md iteration 13 appended. Covers: e2e tests marked
+  `#[ignore]` (~96 tests, 16 files); stress/perf tests marked `#[ignore]`
+  (4 files); timeout budget reductions (`from_secs` → `from_millis` across
+  `lsp318_capabilities/`, `max_rpc_handlers/`, `dogfood_loop/`,
+  `challenger_m2/`, `autonomic_mesh/`, misc files); fixed sleep reductions
+  (50ms→5ms, 100ms→10ms, 10ms→1ms); new inline unit tests in composition
+  layer (439 lines), protocol types, gate/primitives, jsonrpc/service, runtime.
+- **No new web representation changes.** The `/coverage` page reads
+  DOC_COVERAGE_LOG.md live — it will surface iteration 13 automatically once
+  the file is updated. No code change to `app/coverage/page.tsx` needed.
+- Gap map unchanged: rendered-but-fabricated **0** (inviolable).
+  exposed-but-unrepresented: 0.
+- Build status for Rust workspace: CANDIDATE (requires sibling repos).
