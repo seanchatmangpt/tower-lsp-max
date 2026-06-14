@@ -167,6 +167,10 @@ export async function readCoverage(): Promise<CoverageReport> {
   };
 }
 
+// ---------------------------------------------------------------------------
+// ConformanceSurface — LawAxis variants + admission pipeline states
+// ---------------------------------------------------------------------------
+
 /** A law axis variant name parsed from the real LawAxis enum in conformance.rs. */
 export interface ConformanceAxis {
   name: string;
@@ -242,6 +246,10 @@ export async function readConformanceSurface(): Promise<ConformanceSurface> {
 
   return { axes, pipelineStates, sourceFile: CONFORMANCE_RS };
 }
+
+// ---------------------------------------------------------------------------
+// OcelEvidence — OCEL process-evidence summaries
+// ---------------------------------------------------------------------------
 
 /** A single OCEL file's parsed summary. Every field comes from real *.ocel.json
  *  data; the interface documents which OCEL2 keys were actually present. */
@@ -369,6 +377,131 @@ export async function readOcelEvidence(): Promise<OcelFile[]> {
   return found;
 }
 
+// ---------------------------------------------------------------------------
+// AdmissionGraph — receipt-chain cross-product: receipts x ConformanceVector axes
+// ---------------------------------------------------------------------------
+
+/** One of the three pipeline states from the admission_pipeline WITNESS block,
+ *  structured for the receipt cross-product view. */
+export interface AdmissionPipelineState {
+  label: string;        // e.g. "[A]"
+  receiptState: string; // e.g. "unverified receipt (unknown)"
+  axisState: string;    // e.g. "Receipt axis = UNKNOWN"
+  gateVerdict: string;  // e.g. "Gate: BLOCKED"
+}
+
+/** One real receipt mapped to its axis state and implied gate verdict. */
+export interface ReceiptGraphRow {
+  sourceFile: string;
+  status?: string;
+  axisState: "admitted" | "refused" | "unknown";
+  gateVerdict: "ADMITTED" | "BLOCKED";
+}
+
+export interface AdmissionGraph {
+  pipelineStates: AdmissionPipelineState[];
+  receiptSummary: ReceiptGraphRow[];
+  totalAdmitted: number;
+  totalRefused: number;
+  totalUnknown: number;
+}
+
+/**
+ * Build the cross-product view: real receipts mapped onto ConformanceVector axis
+ * states, plus the three pipeline states parsed from the admission_pipeline WITNESS
+ * block in DOC_COVERAGE_LOG.md.
+ *
+ * The three pipeline states [A]/[B]/[C] are parsed verbatim from the WITNESS block
+ * captured in Iteration 4. Each real receipt is mapped to an axis state by its
+ * status field: ADMITTED -> admitted, absent/no status -> unknown, anything else ->
+ * refused. Gate verdict follows the strict-mode rule: admitted admits release,
+ * unknown or refused blocks it.
+ *
+ * Throws if DOC_COVERAGE_LOG.md is absent.
+ */
+export async function readAdmissionGraph(): Promise<AdmissionGraph> {
+  const md = await fs.readFile(
+    path.join(REPO_ROOT, "DOC_COVERAGE_LOG.md"),
+    "utf8",
+  );
+
+  // Parse the three pipeline states from the WITNESS block in Iteration 4.
+  // The witness lines have the form (using the unicode arrow printed by the example):
+  //   [A] unverified receipt (unknown)  -> admits_release = false (strict blocks)
+  //   [B] verified intact receipt       -> admits_release = true
+  //   [C] tampered receipt (refused)    -> admits_release = false
+  // The log uses the unicode arrow character U+2192 between the description and
+  // admits_release, so the pattern matches both -> and the unicode arrow.
+  const witnessRe =
+    /\[([ABC])\]\s+(.+?)\s+(?:→|->)\s+admits_release\s*=\s*(true|false)/g;
+  const pipelineStates: AdmissionPipelineState[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = witnessRe.exec(md)) !== null) {
+    const [, label, desc, releases] = m;
+    const releasesGate = releases === "true";
+    let axisState: string;
+    if (desc.includes("unknown")) {
+      axisState = "Receipt axis = UNKNOWN";
+    } else if (desc.includes("tampered") || desc.includes("refused")) {
+      axisState = "Receipt axis = REFUSED";
+    } else {
+      axisState = "Receipt axis = ADMITTED";
+    }
+    const gateVerdict = releasesGate ? "Gate: ADMITTED" : "Gate: BLOCKED";
+    pipelineStates.push({
+      label: `[${label}]`,
+      receiptState: desc.trim(),
+      axisState,
+      gateVerdict,
+    });
+  }
+  if (pipelineStates.length === 0) {
+    throw new Error(
+      "admission_pipeline WITNESS block not found in DOC_COVERAGE_LOG.md" +
+        " — expected [A]/[B]/[C] lines",
+    );
+  }
+
+  // Load the real receipts and map each to an axis state.
+  const receipts = await readReceipts();
+  const receiptSummary: ReceiptGraphRow[] = receipts.map((r) => {
+    let axisState: ReceiptGraphRow["axisState"];
+    if (!r.status) {
+      axisState = "unknown";
+    } else if (r.status === "ADMITTED") {
+      axisState = "admitted";
+    } else {
+      axisState = "refused";
+    }
+    const gateVerdict: ReceiptGraphRow["gateVerdict"] =
+      axisState === "admitted" ? "ADMITTED" : "BLOCKED";
+    return {
+      sourceFile: r.sourceFile,
+      status: r.status,
+      axisState,
+      gateVerdict,
+    };
+  });
+
+  const totalAdmitted = receiptSummary.filter(
+    (r) => r.axisState === "admitted",
+  ).length;
+  const totalRefused = receiptSummary.filter(
+    (r) => r.axisState === "refused",
+  ).length;
+  const totalUnknown = receiptSummary.filter(
+    (r) => r.axisState === "unknown",
+  ).length;
+
+  return {
+    pipelineStates,
+    receiptSummary,
+    totalAdmitted,
+    totalRefused,
+    totalUnknown,
+  };
+}
+
 /** Workspace version, read from the real Cargo.toml (CalVer YY.M.D). */
 export async function readWorkspaceVersion(): Promise<string> {
   const cargo = await fs.readFile(path.join(REPO_ROOT, "Cargo.toml"), "utf8");
@@ -414,11 +547,11 @@ export async function readWitnessOutputs(): Promise<WitnessOutput[]> {
     const captureRe =
       /\*\*captured run\*\*\s*\(`cargo run --example ([^\s,`]+)[^)]*\$\?\s*=\s*(\d+)[^)]*\):\s*\n  ```\n([\s\S]*?)  ```/g;
 
-    let m: RegExpExecArray | null;
-    while ((m = captureRe.exec(section)) !== null) {
-      const exampleName = m[1];
-      const exitCode = parseInt(m[2], 10);
-      const fenceContent = m[3];
+    let cm: RegExpExecArray | null;
+    while ((cm = captureRe.exec(section)) !== null) {
+      const exampleName = cm[1];
+      const exitCode = parseInt(cm[2], 10);
+      const fenceContent = cm[3];
       // Strip the 2-space prefix from each content line (it is indentation, not content).
       const outputLines = fenceContent
         .split("\n")

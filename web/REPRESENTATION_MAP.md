@@ -33,11 +33,11 @@ be zero at all times — this is the inviolable rule).
 | CLI noun-verb surface | `app/cli` (RSC parses real `nouns/*.rs`) | ✅ represented (iter 2) |
 | Example witnesses (live run) | `app/witnesses` (RSC parses real DOC_COVERAGE_LOG.md captured run blocks) | ✅ represented (iter 10) |
 | Coverage gap map | `app/coverage` (RSC parses real DOC_COVERAGE_LOG.md) | ✅ represented (iter 3) |
-| Conformance verdict (live) | `app/conformance` (RSC parses real `conformance.rs` + DOC_COVERAGE_LOG.md) | ✅ represented (iter 4) |
+| Conformance verdict (live) | `app/conformance` (RSC parses real `conformance.rs` + DOC_COVERAGE_LOG.md) | ✅ represented (iter 8) |
 | OCEL process evidence | `app/ocel` (RSC reads real `*.ocel.json`) | ✅ represented (iter 9) |
-| Receipt-chain cross-product graph | — | ❌ (cross-product, after per-capability) |
+| Receipt-chain cross-product graph | `app/graph` (RSC parses DOC_COVERAGE_LOG.md WITNESS block + real `*.receipt.json`) | ✅ represented (iter 11) |
 
-rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 1.
+rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 0.
 
 ## Iteration log
 
@@ -83,7 +83,7 @@ rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 1.
 - exposed-but-unrepresented now 4: example witnesses (live run), conformance
   (live), OCEL evidence, receipt-chain cross-product graph.
 
-### Iteration 4 — conformance surface view
+### Iteration 8 — conformance surface view
 - `readConformanceSurface()` parses `LawAxis` enum variants directly from
   `lsp-max-protocol/src/conformance.rs` (the real Rust source) and the
   `admission_pipeline` WITNESS block from `DOC_COVERAGE_LOG.md`.
@@ -96,7 +96,7 @@ rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 1.
 - exposed-but-unrepresented now 3: example witnesses (live run), OCEL evidence,
   receipt-chain cross-product graph.
 
-### Iteration 5 — OCEL process evidence view
+### Iteration 9 — OCEL process evidence view
 - `readOcelEvidence()` reads `*.ocel.json` from the two known OCEL directories;
   handles OCEL2 array and object-keyed formats; skips plain inventory arrays.
 - `app/ocel/page.tsx`: RSC rendering each OCEL file as a card with event types,
@@ -105,7 +105,7 @@ rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 1.
 - exposed-but-unrepresented now 2: example witnesses (live run),
   receipt-chain cross-product graph.
 
-### Iteration 6 — witnesses view (DOC_COVERAGE_LOG iter 10)
+### Iteration 10 — witnesses view
 - `readWitnessOutputs()` parses each `**captured run**` block (example name,
   iteration label, WITNESS output lines, exit code) from DOC_COVERAGE_LOG.md;
   throws if absent.
@@ -113,3 +113,19 @@ rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 1.
   iteration label, exit code, `<pre>` of output lines, and source footnote.
 - Witnesses link added to `web/app/layout.tsx` nav.
 - exposed-but-unrepresented now 1: receipt-chain cross-product graph.
+
+### Iteration 11 — receipt-chain cross-product graph
+- `readAdmissionGraph()` added to `web/lib/project.ts`: reads
+  DOC_COVERAGE_LOG.md (WITNESS block from admission_pipeline Iteration 4),
+  parses the three pipeline states [A]/[B]/[C], then cross-products them against
+  the real `*.receipt.json` artifacts via `readReceipts()`. Throws if
+  DOC_COVERAGE_LOG.md is absent — anti-fabrication boundary holds.
+- `app/graph/page.tsx`: RSC rendering pipeline-states table, text flow
+  diagram, and receipt cross-product table with axis state and gate verdict per
+  receipt. Summary counts (admitted/refused/unknown) from real data. No external
+  graph libraries — table/pre representation only.
+- Nav link added: `<Link href="/graph">Graph</Link>` in `app/layout.tsx`.
+- Note: this iteration closes a **web representation gap**, not a doc↔example
+  gap. The admission_pipeline witness was already captured in DOC_COVERAGE_LOG.md
+  Iteration 4. This iteration adds the missing UI view that surfaces that data.
+- exposed-but-unrepresented now 0.
