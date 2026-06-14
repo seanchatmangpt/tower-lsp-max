@@ -31,13 +31,13 @@ be zero at all times — this is the inviolable rule).
 |---|---|---|
 | Receipt ledger | `app/receipts` (RSC reads real `*.receipt.json`) | ✅ represented (iter 1) |
 | CLI noun-verb surface | `app/cli` (RSC parses real `nouns/*.rs`) | ✅ represented (iter 2) |
-| Example witnesses (live run) | — | ❌ exposed-but-unrepresented |
+| Example witnesses (live run) | `app/witnesses` (RSC parses real DOC_COVERAGE_LOG.md captured run blocks) | ✅ represented (iter 10) |
 | Coverage gap map | `app/coverage` (RSC parses real DOC_COVERAGE_LOG.md) | ✅ represented (iter 3) |
 | Conformance verdict (live) | `app/conformance` (RSC parses real `conformance.rs` + DOC_COVERAGE_LOG.md) | ✅ represented (iter 4) |
 | OCEL process evidence | `app/ocel` (RSC reads real `*.ocel.json`) | ✅ represented (iter 9) |
 | Receipt-chain cross-product graph | — | ❌ (cross-product, after per-capability) |
 
-rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 2.
+rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 1.
 
 ## Iteration log
 
@@ -95,3 +95,21 @@ rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 2.
   rendered table without touching the component.
 - exposed-but-unrepresented now 3: example witnesses (live run), OCEL evidence,
   receipt-chain cross-product graph.
+
+### Iteration 5 — OCEL process evidence view
+- `readOcelEvidence()` reads `*.ocel.json` from the two known OCEL directories;
+  handles OCEL2 array and object-keyed formats; skips plain inventory arrays.
+- `app/ocel/page.tsx`: RSC rendering each OCEL file as a card with event types,
+  object types, counts, and a sample-events table.
+- OCEL link added to `web/app/layout.tsx` nav.
+- exposed-but-unrepresented now 2: example witnesses (live run),
+  receipt-chain cross-product graph.
+
+### Iteration 6 — witnesses view (DOC_COVERAGE_LOG iter 10)
+- `readWitnessOutputs()` parses each `**captured run**` block (example name,
+  iteration label, WITNESS output lines, exit code) from DOC_COVERAGE_LOG.md;
+  throws if absent.
+- `app/witnesses/page.tsx`: RSC rendering each witness as a card with example name,
+  iteration label, exit code, `<pre>` of output lines, and source footnote.
+- Witnesses link added to `web/app/layout.tsx` nav.
+- exposed-but-unrepresented now 1: receipt-chain cross-product graph.
