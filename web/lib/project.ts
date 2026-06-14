@@ -167,6 +167,82 @@ export async function readCoverage(): Promise<CoverageReport> {
   };
 }
 
+/** A law axis variant name parsed from the real LawAxis enum in conformance.rs. */
+export interface ConformanceAxis {
+  name: string;
+  id: number; // stable numeric index per LawAxisId constants (0 = Protocol, 10 = Domain)
+}
+
+/** One pipeline state from the admission_pipeline WITNESS block in DOC_COVERAGE_LOG.md. */
+export interface PipelineState {
+  label: string;      // e.g. "A", "B", "C"
+  description: string; // left of the arrow
+  verdict: string;    // right of the arrow
+}
+
+export interface ConformanceSurface {
+  axes: ConformanceAxis[];
+  pipelineStates: PipelineState[];
+  sourceFile: string; // relative path to conformance.rs
+}
+
+const CONFORMANCE_RS = "lsp-max-protocol/src/conformance.rs";
+
+/** Read and parse the real conformance surface: LawAxis enum variants from
+ *  conformance.rs and the admission_pipeline WITNESS block from DOC_COVERAGE_LOG.md.
+ *  Throws if conformance.rs is absent. */
+export async function readConformanceSurface(): Promise<ConformanceSurface> {
+  const src = await fs.readFile(path.join(REPO_ROOT, CONFORMANCE_RS), "utf8");
+
+  // Extract the enum body between `pub enum LawAxis {` and the closing `}`.
+  const enumMatch = src.match(/pub enum LawAxis\s*\{([^}]+)\}/s);
+  if (!enumMatch) {
+    throw new Error(`LawAxis enum not found in ${CONFORMANCE_RS}`);
+  }
+  const enumBody = enumMatch[1];
+
+  // Capture named (non-Custom) variants: lines like `    Protocol,`.
+  // Exclude Custom(...) which takes a String parameter.
+  const axes: ConformanceAxis[] = [];
+  const variantRe = /^\s{4}([A-Z][A-Za-z]+),\s*$/gm;
+  let vm: RegExpExecArray | null;
+  while ((vm = variantRe.exec(enumBody)) !== null) {
+    const name = vm[1];
+    if (name === "Custom") continue;
+    axes.push({ name, id: axes.length });
+  }
+
+  if (axes.length === 0) {
+    throw new Error(`No named LawAxis variants parsed from ${CONFORMANCE_RS}`);
+  }
+
+  // Parse the admission_pipeline WITNESS block from DOC_COVERAGE_LOG.md.
+  // The captured run block looks like:
+  //   [A] unverified receipt (unknown)  -> admits_release = false (strict blocks)
+  //   [B] verified intact receipt       -> admits_release = true
+  //   [C] tampered receipt (refused)    -> admits_release = false
+  const logSrc = await fs.readFile(path.join(REPO_ROOT, "DOC_COVERAGE_LOG.md"), "utf8");
+  const witnessBlockMatch = logSrc.match(
+    /WITNESS admission_pipeline[^\n]*\n((?:\s+\[[A-Z]\][^\n]+\n)+)/
+  );
+
+  const pipelineStates: PipelineState[] = [];
+  if (witnessBlockMatch) {
+    const block = witnessBlockMatch[1];
+    const stateRe = /\[([A-Z])\]\s+(.+?)\s+(?:→|->)\s+(.+)/g;
+    let sm: RegExpExecArray | null;
+    while ((sm = stateRe.exec(block)) !== null) {
+      pipelineStates.push({
+        label: sm[1],
+        description: sm[2].trim(),
+        verdict: sm[3].trim(),
+      });
+    }
+  }
+
+  return { axes, pipelineStates, sourceFile: CONFORMANCE_RS };
+}
+
 /** Workspace version, read from the real Cargo.toml (CalVer YY.M.D). */
 export async function readWorkspaceVersion(): Promise<string> {
   const cargo = await fs.readFile(path.join(REPO_ROOT, "Cargo.toml"), "utf8");

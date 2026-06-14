@@ -33,11 +33,11 @@ be zero at all times — this is the inviolable rule).
 | CLI noun-verb surface | `app/cli` (RSC parses real `nouns/*.rs`) | ✅ represented (iter 2) |
 | Example witnesses (live run) | — | ❌ exposed-but-unrepresented |
 | Coverage gap map | `app/coverage` (RSC parses real DOC_COVERAGE_LOG.md) | ✅ represented (iter 3) |
-| Conformance verdict (live) | — | ❌ exposed-but-unrepresented |
+| Conformance verdict (live) | `app/conformance` (RSC parses real `conformance.rs` + DOC_COVERAGE_LOG.md) | ✅ represented (iter 4) |
 | OCEL process evidence | — | ❌ exposed-but-unrepresented |
 | Receipt-chain cross-product graph | — | ❌ (cross-product, after per-capability) |
 
-rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 4.
+rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 3.
 
 ## Iteration log
 
@@ -82,3 +82,16 @@ rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 4.
   receipt_chain_explained.rs), real Iteration 1–6 headers, covered/gap counts.
 - exposed-but-unrepresented now 4: example witnesses (live run), conformance
   (live), OCEL evidence, receipt-chain cross-product graph.
+
+### Iteration 4 — conformance surface view
+- `readConformanceSurface()` parses `LawAxis` enum variants directly from
+  `lsp-max-protocol/src/conformance.rs` (the real Rust source) and the
+  `admission_pipeline` WITNESS block from `DOC_COVERAGE_LOG.md`.
+- `app/conformance/page.tsx`: RSC rendering all 11 named law axes (Protocol..Domain)
+  with their stable IDs and descriptions, plus the 3 pipeline states (A/B/C) from the
+  captured WITNESS run. Throws if `conformance.rs` is absent.
+- Conformance route added to `web/app/layout.tsx` nav.
+- Data source is the real enum — adding or removing a LawAxis variant changes the
+  rendered table without touching the component.
+- exposed-but-unrepresented now 3: example witnesses (live run), OCEL evidence,
+  receipt-chain cross-product graph.
