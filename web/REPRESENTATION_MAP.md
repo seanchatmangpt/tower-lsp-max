@@ -20,6 +20,7 @@ App lives in `web/` (App Router, RSC). Data paths resolve to the repo root
 | Doc↔example coverage | `DOC_COVERAGE_LOG.md` | coverage gap map |
 | Protocol types | `lsp-max-protocol/src/{conformance,core}.rs` | type surface (ConformanceVector, Receipt, LawAxis) |
 | Workspace version | `Cargo.toml` workspace.package.version (CalVer 26.6.9) | version banner |
+| Dep surface (Rust + npm) | `Cargo.toml` [workspace.dependencies] + `web/package.json` | dep versions table |
 
 ## Gap map (rendered ↔ exposed)
 
@@ -36,6 +37,7 @@ be zero at all times — this is the inviolable rule).
 | Conformance verdict (live) | `app/conformance` (RSC parses real `conformance.rs` + DOC_COVERAGE_LOG.md) | ✅ represented (iter 8) |
 | OCEL process evidence | `app/ocel` (RSC reads real `*.ocel.json`) | ✅ represented (iter 9) |
 | Receipt-chain cross-product graph | `app/graph` (RSC parses DOC_COVERAGE_LOG.md WITNESS block + real `*.receipt.json`) | ✅ represented (iter 11) |
+| Dep surface (Rust + npm) | `app/deps` (RSC parses real Cargo.toml + package.json) | ✅ represented (iter 12) |
 
 rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 0.
 
@@ -129,3 +131,21 @@ rendered-but-fabricated: **0** (inviolable). exposed-but-unrepresented: 0.
   gap. The admission_pipeline witness was already captured in DOC_COVERAGE_LOG.md
   Iteration 4. This iteration adds the missing UI view that surfaces that data.
 - exposed-but-unrepresented now 0.
+
+### Iteration 12 — dep surface + home stats expansion
+- `readDepSummary()` added to `web/lib/project.ts`: reads `[workspace.dependencies]`
+  block from `Cargo.toml` (pinned-version entries only, path deps skipped) and
+  `dependencies` + `devDependencies` from `web/package.json`. Workspace version
+  also captured. Throws if either file is absent — anti-fabrication boundary.
+- `app/deps/page.tsx`: RSC page (`force-dynamic`) rendering Rust workspace dep
+  table and npm package table side-by-side, with source footnotes for each.
+- `app/page.tsx`: home page now fetches `readCoverage()` in parallel with
+  existing fetches and renders two additional stat cards — covered capabilities
+  (linking to /coverage) and open gaps — from real DOC_COVERAGE_LOG.md data.
+- `app/layout.tsx`: added `<Link href="/deps">Deps</Link>` to nav.
+- Dep surface row added to gap map: ✅ represented. exposed-but-unrepresented: 0.
+- Context: this iteration also covers the dep upgrade work (dashmap 6, thiserror 2,
+  ureq 3, async-tungstenite 0.29, npm bumps), the law violation sweep
+  (TOWER_LSP_MAX_* -> LSP_MAX_*), and stale artifact removal
+  (tower-lsp-max-runtime/, stash-wip). Build status for Rust workspace:
+  CANDIDATE (requires sibling repos).
